@@ -57,3 +57,6 @@
 - 저장소 전략
 - UI/UX 레이아웃 구상
 - 기술 스택 명시
+### [2026-05-21] 개발 환경 구축 및 구현 착수
+- 개발을 위한 기본 파일(`index.html`, `style.css`, `script.js`) 및 UI 뼈대 생성
+- Vanilla JS 기반의 To-do List 기능 구현의 토대
