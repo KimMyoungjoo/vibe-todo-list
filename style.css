@@ -1,5 +1,5 @@
 /* ==========================================================================
-   1. 전체 화면 리셋 및 기본 설정 (가로폭 100% 꽉 찬 구조)
+   1. 전체 화면 리셋 및 기본 설정
    ========================================================================== */
 html, body {
     margin: 0;
@@ -7,12 +7,11 @@ html, body {
     width: 100%;
     height: 100%;
     font-family: 'Arial', sans-serif;
-    background: #f4f5f7; /* 배경색 */
+    background: #f4f5f7;
     display: flex;
     flex-direction: column;
 }
 
-/* 중앙 정렬 및 가로폭 응답형 컨테이너 */
 .header-container, .main-container {
     width: 100%;
     max-width: 1200px;
@@ -22,7 +21,7 @@ html, body {
 }
 
 /* ==========================================================================
-   2. TOP (Header) 영역: 타이틀, 검색창, 추가 버튼
+   2. TOP (Header) 영역
    ========================================================================== */
 #top-header {
     width: 100%;
@@ -37,7 +36,6 @@ html, body {
     color: #333;
 }
 
-/* 검색창과 추가 버튼 가로 배치 */
 .top-actions {
     display: flex;
     gap: 10px;
@@ -60,7 +58,7 @@ html, body {
 
 #open-add-modal-btn {
     padding: 12px 24px;
-    background: #4f46e5; /* 인디고 포인트 컬러 */
+    background: #4f46e5;
     color: white;
     border: none;
     border-radius: 8px;
@@ -76,7 +74,7 @@ html, body {
 }
 
 /* ==========================================================================
-   3. MAIN (Content) 영역: 할 일 리스트 레이아웃 틀
+   3. MAIN (Content) 영역
    ========================================================================== */
 #main-content {
     flex: 1;
@@ -95,7 +93,95 @@ html, body {
 }
 
 /* ==========================================================================
-   4. 모바일 해상도 대응
+   4. 모달(Modal) 창 및 폼 그룹 스타일
+   ========================================================================== */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex; /* 레이아웃 확인용으로 켜둠 */
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: #ffffff;
+    padding: 28px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 450px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    box-sizing: border-box;
+}
+
+.modal-content h2 {
+    margin: 0 0 20px 0;
+    font-size: 1.4rem;
+    color: #333;
+}
+
+/* 입력 항목 묶음 */
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    font-size: 0.85rem;
+    font-weight: bold;
+    color: #64748b;
+}
+
+/* 모든 입력창 공통 디자인 */
+.form-group input, .form-group select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    outline: none;
+    box-sizing: border-box;
+    transition: border-color 0.2s;
+}
+
+.form-group input:focus, .form-group select:focus {
+    border-color: #4f46e5;
+}
+
+/* 모달 버튼 */
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 24px;
+}
+
+.modal-actions button {
+    padding: 10px 18px;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.primary-btn { background: #4f46e5; color: white; }
+.primary-btn:hover { background: #4338ca; }
+
+.secondary-btn { background: #f1f5f9; color: #475569; }
+.secondary-btn:hover { background: #e2e8f0; }
+
+.danger-btn { background: #ef4444; color: white; margin-right: auto; }
+.danger-btn:hover { background: #dc2626; }
+
+/* ==========================================================================
+   5. 모바일 해상도 대응
    ========================================================================== */
 @media (max-width: 600px) {
     #top-header h1 {
