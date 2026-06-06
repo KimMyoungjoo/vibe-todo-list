@@ -1,108 +1,311 @@
 // ==========================================================================
-// 1. DOM 요소 가져오기 및 초기 데이터 세팅
+// 1. 전역 변수 및 초기화 (로컬스토리지 키 설정)
 // ==========================================================================
-const todoList = document.getElementById('todo-list');
-const openAddModalBtn = document.getElementById('open-add-modal-btn');
+const STORAGE_KEY = 'todos'; 
+let todos = [];
+let currentEditId = null; // 현재 수정(편집) 중인 할 일의 ID
 
-const todoModal = document.getElementById('todo-modal');
-const modalTitle = document.getElementById('modal-title');
-const modalTodoInput = document.getElementById('modal-todo-input');
-const modalDateInput = document.getElementById('modal-date-input');
-const modalCategorySelect = document.getElementById('modal-category-select');
+document.addEventListener('DOMContentLoaded', () => {
+    loadTodosFromStorage();
+    initEventListeners();
+    renderTodos(); // 초기 화면 렌더링
+});
 
-const modalSaveBtn = document.getElementById('modal-save-btn');
-const modalCloseBtn = document.getElementById('modal-close-btn');
-const modalDeleteBtn = document.getElementById('modal-delete-btn');
-
-// [수정] 불필요한 하드코딩 샘플 데이터를 완전히 제거하고 빈 배열([])로 시작합니다.
-let todos = JSON.parse(localStorage.getItem('vibe_todos')) || [];
-
-// 로컬스토리지에 현재 배열 상태를 저장하는 함수
-function saveToLocalStorage() {
-    localStorage.setItem('vibe_todos', JSON.stringify(todos));
+// 하이브리드 데이터 호환 로드 함수 (데이터 유실 방지)
+function loadTodosFromStorage() {
+    try {
+        const storageData = localStorage.getItem(STORAGE_KEY);
+        if (storageData) {
+            const rawTodos = JSON.parse(storageData);
+            todos = rawTodos.map(todo => ({
+                id: todo.id || Date.now() + Math.random(),
+                title: todo.title || todo.text || todo.content || '', 
+                date: todo.date || todo.dueDate || '',
+                category: todo.category || '전체',
+                completed: todo.completed || false
+            }));
+        } else {
+            todos = [];
+        }
+    } catch (e) {
+        console.error("로컬스토리지를 읽어오는 중 오류 발생:", e);
+        todos = [];
+    }
 }
 
-// 모달 초기 상태 숨김
-todoModal.style.display = 'none';
+function saveTodosToStorage() {
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+    } catch (e) {
+        console.error("로컬스토리지에 저장하는 중 오류 발생:", e);
+    }
+}
 
 // ==========================================================================
-// 2. 모달 제어 및 데이터 등록 (로컬스토리지 저장)
+// 2. 이벤트 리스너 및 모달, 검색 제어
 // ==========================================================================
-openAddModalBtn.addEventListener('click', () => {
-    modalTitle.textContent = '할 일 추가';
-    modalTodoInput.value = '';
-    modalDateInput.value = '';
-    modalCategorySelect.value = '전체';
-    modalDeleteBtn.style.display = 'none';
-    todoModal.style.display = 'flex';
-});
+function initEventListeners() {
+    const openModalBtn = document.getElementById('open-add-modal-btn');
+    const modalOverlay = document.getElementById('todo-modal');
+    const modalTitle = document.getElementById('modal-title');
+    
+    // HTML 내부 실제 ID 매핑
+    const titleInput = document.getElementById('modal-todo-input');
+    const dateInput = document.getElementById('modal-date-input');
+    const categorySelect = document.getElementById('modal-category-select');
+    const searchInput = document.getElementById('search-input'); // 검색창 ID
+    
+    const saveBtn = document.getElementById('modal-save-btn');
+    const closeBtn = document.getElementById('modal-close-btn');
+    const deleteBtn = document.getElementById('modal-delete-btn');
 
-modalCloseBtn.addEventListener('click', () => {
-    todoModal.style.display = 'none';
-});
-
-// [등록 버튼] 입력값을 로컬스토리지에 저장하고 화면 갱신
-modalSaveBtn.addEventListener('click', () => {
-    const text = modalTodoInput.value.trim();
-    const date = modalDateInput.value;
-    const category = modalCategorySelect.value;
-
-    if (!text) {
-        alert('할 일 내용을 입력해주세요!');
-        return;
+    // 🔍 [실시간 검색 구현] 검색창에 타이핑할 때마다 즉시 리스트 갱신
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            renderTodos(); 
+        });
     }
 
-    const newTodo = {
-        id: Date.now(),
-        text: text,
-        date: date,
-        category: category,
-        completed: false
-    };
+    // [1] 상단 '할 일 추가' 버튼 클릭 시 모달 열기 (등록 모드)
+    if (openModalBtn && modalOverlay) {
+        openModalBtn.addEventListener('click', () => {
+            currentEditId = null; 
+            if (modalTitle) modalTitle.innerText = '할 일 추가';
+            modalOverlay.style.display = 'flex'; 
+            
+            if (titleInput) titleInput.value = '';
+            if (categorySelect) categorySelect.value = '전체';
+            if (dateInput) dateInput.value = new Date().toISOString().substring(0, 10);
+            
+            removeErrorMessage();
 
-    todos.push(newTodo);
-    saveToLocalStorage(); // 로컬스토리지에 저장
-    renderTodos();        // 저장된 데이터 기반으로 출력
-    todoModal.style.display = 'none';
-});
-
-// ==========================================================================
-// 3. 화면 출력 및 인터랙션 기능
-// ==========================================================================
-function renderTodos() {
-    todoList.innerHTML = '';
-
-    // 데이터가 아예 없을 때 보여줄 안내 문구 추가 (UX 개선)
-    if (todos.length === 0) {
-        todoList.innerHTML = `<li class="empty-message" style="text-align:center; color:#94a3b8; padding:40px 0; list-style:none;">등록된 할 일이 없습니다. 새로운 할 일을 추가해 보세요!</li>`;
-        return;
+            if (deleteBtn) {
+                deleteBtn.style.setProperty('display', 'none', 'important');
+            }
+        });
     }
 
-    todos.forEach(todo => {
-        const li = document.createElement('li');
-        li.className = 'todo-item';
-        
-        li.innerHTML = `
-            <div class="todo-left">
-                <input type="checkbox" class="todo-checkbox" ${todo.completed ? 'checked' : ''} onchange="toggleComplete(${todo.id})">
-                <div class="todo-info">
-                    <span class="todo-text ${todo.completed ? 'completed' : ''}">${todo.text}</span>
-                    <span class="todo-meta">📅 ${todo.date || '기한 없음'} | 🏷️ ${todo.category}</span>
-                </div>
-            </div>
-            <button class="edit-btn">수정</button>
-        `;
-        
-        todoList.appendChild(li);
+    // [2] 모달 내부 '저장' 버튼 클릭 시 (추가 또는 수정 완료)
+    if (saveBtn) {
+        saveBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            removeErrorMessage();
+
+            if (!titleInput || !titleInput.value.trim()) {
+                showErrorMessage(titleInput, '할 일 내용을 입력해 주세요!');
+                return; 
+            }
+
+            if (currentEditId === null) {
+                // [등록 모드]
+                const newTodo = {
+                    id: Date.now(),
+                    title: titleInput.value.trim(),
+                    date: dateInput ? dateInput.value : '',
+                    category: categorySelect ? categorySelect.value : '전체',
+                    completed: false
+                };
+                todos.push(newTodo);
+            } else {
+                // [편집 모드]
+                const todoIndex = todos.findIndex(t => t.id == currentEditId);
+                if (todoIndex !== -1) {
+                    todos[todoIndex].title = titleInput.value.trim();
+                    todos[todoIndex].date = dateInput ? dateInput.value : '';
+                    todos[todoIndex].category = categorySelect ? categorySelect.value : '전체';
+                }
+            }
+
+            saveTodosToStorage();
+            renderTodos(); 
+            if (modalOverlay) modalOverlay.style.display = 'none'; 
+        });
+    }
+
+    // [3] 모달 내부 '삭제' 버튼 클릭 시
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (currentEditId !== null) {
+                todos = todos.filter(t => t.id != currentEditId);
+                saveTodosToStorage();
+                renderTodos();
+                if (modalOverlay) modalOverlay.style.display = 'none';
+            }
+        });
+    }
+
+    // [4] 취소 버튼 클릭 시 모달 닫기
+    if (closeBtn) {
+        closeBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (modalOverlay) modalOverlay.style.display = 'none';
+        });
+    }
+
+    // [5] 모달 바깥 배경 클릭 시 닫기
+    if (modalOverlay) {
+        modalOverlay.addEventListener('click', (e) => {
+            if (e.target === modalOverlay) {
+                modalOverlay.style.display = 'none';
+            }
+        });
+    }
+}
+
+// ==========================================================================
+// 3. 편집(수정) 버튼 클릭 시 모달 제어 함수
+// ==========================================================================
+function openEditModal(id) {
+    const modalOverlay = document.getElementById('todo-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const titleInput = document.getElementById('modal-todo-input');
+    const dateInput = document.getElementById('modal-date-input');
+    const categorySelect = document.getElementById('modal-category-select');
+    const deleteBtn = document.getElementById('modal-delete-btn');
+
+    const todo = todos.find(t => t.id == id);
+    if (!todo) return;
+
+    currentEditId = id; 
+    if (modalTitle) modalTitle.innerText = '할 일 수정/편집';
+    
+    if (titleInput) titleInput.value = todo.title;
+    if (dateInput) dateInput.value = todo.date;
+    if (categorySelect) categorySelect.value = todo.category;
+
+    removeErrorMessage();
+
+    if (deleteBtn) {
+        deleteBtn.style.setProperty('display', 'inline-block', 'important');
+    }
+
+    if (modalOverlay) modalOverlay.style.display = 'flex';
+}
+
+// ==========================================================================
+// 4. 오류 안내 메시지 동적 제어 함수
+// ==========================================================================
+function showErrorMessage(inputElement, message) {
+    if (!inputElement) return;
+    inputElement.style.borderColor = '#ef4444';
+    inputElement.focus();
+
+    if (document.querySelector('.todo-error-msg')) return;
+
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'todo-error-msg';
+    errorDiv.innerText = message;
+    errorDiv.style.color = '#ef4444';
+    errorDiv.style.fontSize = '0.85rem';
+    errorDiv.style.fontWeight = 'bold';
+    errorDiv.style.marginTop = '6px';
+    errorDiv.style.textAlign = 'left';
+
+    inputElement.insertAdjacentElement('afterend', errorDiv);
+
+    inputElement.addEventListener('input', function onInput() {
+        removeErrorMessage();
+        inputElement.removeEventListener('input', onInput);
     });
 }
 
-// [체크박스 기능] 완료 상태 토글 후 로컬스토리지 업데이트
-window.toggleComplete = function(id) {
-    todos = todos.map(todo => todo.id === id ? { ...todo, completed: !todo.completed } : todo);
-    saveToLocalStorage();
-    renderTodos();
+function removeErrorMessage() {
+    const titleInput = document.getElementById('modal-todo-input');
+    if (titleInput) {
+        titleInput.style.borderColor = ''; 
+    }
+    const existingMsg = document.querySelector('.todo-error-msg');
+    if (existingMsg) {
+        existingMsg.remove();
+    }
 }
 
-// 최초 페이지 로드 시 로컬스토리지 데이터 화면에 출력
-renderTodos();
+// ==========================================================================
+// 5. 화면 리스트 렌더링 (리얼타임 검색 필터 포함)
+// ==========================================================================
+function renderTodos() {
+    const todoListContainer = document.getElementById('todo-list');
+    const searchInput = document.getElementById('search-input');
+    if (!todoListContainer) return;
+    
+    todoListContainer.innerHTML = '';
+
+    // 검색창 텍스트 가져오기 (소문자 변환하여 대소문자 구분 없이 검색 가능하게 처리)
+    const keyword = searchInput ? searchInput.value.trim().toLowerCase() : '';
+
+    // 🔍 전체 할 일 리스트 중 검색 키워드가 포함된 할 일만 필터링
+    const filteredTodos = todos.filter(todo => {
+        return todo.title.toLowerCase().includes(keyword);
+    });
+
+    // 검색 결과든, 전체 리스트든 비어있을 때 처리
+    if (filteredTodos.length === 0) {
+        const emptyMessage = document.createElement('li');
+        emptyMessage.style.textAlign = 'center';
+        emptyMessage.style.color = '#64748b';
+        emptyMessage.style.padding = '30px 0';
+        emptyMessage.style.listStyle = 'none';
+        
+        // 검색 키워드가 있을 때와 없을 때 안내 텍스트 다르게 표기
+        if (keyword) {
+            emptyMessage.innerText = `'${keyword}'가 포함된 검색 결과가 없습니다.`;
+        } else {
+            emptyMessage.innerText = '등록된 할 일이 없습니다. 새로운 할 일을 추가해 보세요!';
+        }
+        
+        todoListContainer.appendChild(emptyMessage);
+        return;
+    }
+
+    // 필터링된 결과물만 화면에 출력
+    filteredTodos.forEach(todo => {
+        const li = document.createElement('li');
+        li.className = 'todo-item';
+
+        const completedClass = todo.completed ? 'completed' : '';
+
+        li.innerHTML = `
+            <div class="todo-left">
+                <input type="checkbox" class="todo-checkbox" ${todo.completed ? 'checked' : ''}>
+                <div class="todo-info">
+                    <span class="todo-text ${completedClass}">${escapeHtml(todo.title)}</span>
+                    <span class="todo-meta">[${todo.category}] 마감일: ${todo.date}</span>
+                </div>
+            </div>
+            <button class="edit-btn">편집</button>
+        `;
+
+        // 체크박스 상태 변경 이벤트
+        const checkbox = li.querySelector('.todo-checkbox');
+        if (checkbox) {
+            checkbox.addEventListener('change', () => {
+                todo.completed = checkbox.checked;
+                saveTodosToStorage();
+                renderTodos(); 
+            });
+        }
+
+        // 편집 버튼 클릭 이벤트
+        const editBtn = li.querySelector('.edit-btn');
+        if (editBtn) {
+            editBtn.addEventListener('click', () => {
+                openEditModal(todo.id);
+            });
+        }
+
+        todoListContainer.appendChild(li);
+    });
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+}

@@ -165,7 +165,7 @@ html, body {
     width: 100%;
     height: 100%;
     background: rgba(0, 0, 0, 0.4);
-    display: flex; /* 레이아웃 확인용으로 켜둠 */
+    display: none;
     justify-content: center;
     align-items: center;
     z-index: 1000;
